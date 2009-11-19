@@ -19,7 +19,7 @@ function genFx( type, num ){
 
 jQuery.fn.extend({
 	show: function(speed,callback){
-		if ( speed !== undefined ) {
+		if ( speed ) {
 			return this.animate( genFx("show", 3), speed, callback);
 		} else {
 			for ( var i = 0, l = this.length; i < l; i++ ){
@@ -59,7 +59,7 @@ jQuery.fn.extend({
 	},
 
 	hide: function(speed,callback){
-		if ( speed !== undefined ) {
+		if ( speed ) {
 			return this.animate( genFx("hide", 3), speed, callback);
 		} else {
 			for ( var i = 0, l = this.length; i < l; i++ ){
@@ -163,6 +163,10 @@ jQuery.fn.extend({
 						e.custom( start, val, "" );
 				}
 			});
+
+			if ( jQuery.isEmptyObject( prop ) ) {
+				return optall.complete.call(this);
+			}
 
 			// For JS strict compliance
 			return true;
@@ -420,3 +424,11 @@ jQuery.extend( jQuery.fx, {
 		}
 	}
 });
+
+if ( jQuery.expr && jQuery.expr.filters ) {
+	jQuery.expr.filters.animated = function(elem){
+		return jQuery.grep(jQuery.timers, function(fn){
+			return elem === fn.elem;
+		}).length;
+	};
+}

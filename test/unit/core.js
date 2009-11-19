@@ -310,7 +310,7 @@ test("isXMLDoc - XML", function() {
 }
 
 test("jQuery('html')", function() {
-	expect(13);
+	expect(15);
 
 	reset();
 	jQuery.foo = false;
@@ -339,6 +339,9 @@ test("jQuery('html')", function() {
 	ok( j.length >= 2, "Check node,textnode,comment creation (some browsers delete comments)" );
 
 	ok( !jQuery("<option>test</option>")[0].selected, "Make sure that options are auto-selected #2050" );
+
+	ok( jQuery("<div></div>")[0], "Create a div with closing tag." );
+	ok( jQuery("<table></table>")[0], "Create a table with closing tag." );
 });
 
 test("jQuery('html', context)", function() {
@@ -436,6 +439,18 @@ test("add(String|Element|Array|undefined)", function() {
 	ok( jQuery([]).add( document.getElementById('form') ).length >= 13, "Add a form (adds the elements)" );
 });
 
+test("add(String, Context)", function() {
+	expect(6);
+
+	equals( jQuery(document).add("#form").length, 2, "Make sure that using regular context document still works." );
+	equals( jQuery(document.body).add("#form").length, 2, "Using a body context." );
+	equals( jQuery(document.body).add("#html").length, 1, "Using a body context." );
+
+	equals( jQuery(document).add("#form", document).length, 2, "Use a passed in document context." );
+	equals( jQuery(document).add("#form", document.body).length, 2, "Use a passed in body context." );
+	equals( jQuery(document).add("#html", document.body).length, 1, "Use a passed in body context." );
+});
+
 test("each(Function)", function() {
 	expect(1);
 	var div = jQuery("div");
@@ -502,7 +517,7 @@ test("jQuery.merge()", function() {
 });
 
 test("jQuery.extend(Object, Object)", function() {
-	expect(23);
+	expect(25);
 
 	var settings = { xnumber1: 5, xnumber2: 7, xstring1: "peter", xstring2: "pan" },
 		options = { xnumber2: 1, xstring2: "x", xxx: "newstring" },
@@ -538,10 +553,20 @@ test("jQuery.extend(Object, Object)", function() {
 	same( empty.foo, optionsWithDate.foo, "Dates copy correctly" );
 
 	var myKlass = function() {};
+	var customObject = new myKlass();
+	var optionsWithCustomObject = { foo: { date: new customObject } };
 	empty = {};
-	var optionsWithCustomObject = { foo: { date: new myKlass } };
 	jQuery.extend(true, empty, optionsWithCustomObject);
-	same( empty.foo, optionsWithCustomObject.foo, "Custom objects copy correctly" );
+	ok( empty.foo && empty.foo.date === customObject, "Custom objects copy correctly (no methods)" );
+	
+	// Makes the class a little more realistic
+	myKlass.prototype = { someMethod: function(){} };
+	empty = {};
+	jQuery.extend(true, empty, optionsWithCustomObject);
+	ok( empty.foo && empty.foo.date === customObject, "Custom objects copy correctly" );
+	
+	var ret = jQuery.extend(true, { foo: 4 }, { foo: new Number(5) } );
+	ok( ret.foo == 5, "Wrapped numbers copy correctly" );
 
 	var nullUndef;
 	nullUndef = jQuery.extend({}, options, { xnumber2: null });

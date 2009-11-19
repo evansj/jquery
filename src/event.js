@@ -517,6 +517,14 @@ var withinElement = function( event ) {
 		// handle event if we actually just moused on to a non sub-element
 		jQuery.event.handle.apply( this, arguments );
 	}
+
+},
+
+// In case of event delegation, we only need to rename the event.type,
+// liveHandler will take care of the rest.
+delegate = function( event ) {
+	event.type = event.data;
+	jQuery.event.handle.apply( this, arguments );
 };
 
 // Create mouseenter and mouseleave events
@@ -525,11 +533,11 @@ jQuery.each({
 	mouseout: "mouseleave"
 }, function( orig, fix ) {
 	jQuery.event.special[ fix ] = {
-		setup: function(){
-			jQuery.event.add( this, orig, withinElement, fix );
+		setup: function(data){
+			jQuery.event.add( this, orig, data && data.selector ? delegate : withinElement, fix );
 		},
-		teardown: function(){
-			jQuery.event.remove( this, orig, withinElement );
+		teardown: function(data){
+			jQuery.event.remove( this, orig, data && data.selector ? delegate : withinElement );
 		}
 	};
 });
@@ -575,7 +583,6 @@ jQuery.each({
 	blur: "focusout"
 }, function( orig, fix ){
 	var event = jQuery.event,
-		special = event.special,
 		handle = event.handle;
 	
 	function ieHandler() { 
@@ -583,18 +590,18 @@ jQuery.each({
 		return handle.apply(this, arguments);
 	}
 
-	special[orig] = {
+	event.special[orig] = {
 		setup:function() {
 			if ( this.addEventListener )
 				this.addEventListener( orig, handle, true );
 			else
-				jQuery.event.add( this, fix, ieHandler );
+				event.add( this, fix, ieHandler );
 		}, 
 		teardown:function() { 
 			if ( this.removeEventListener )
 				this.removeEventListener( orig, handle, true );
 			else
-				jQuery.event.remove( this, fix, ieHandler );
+				event.remove( this, fix, ieHandler );
 		}
 	};
 });
@@ -686,13 +693,14 @@ jQuery.fn.extend({
 
 		return this.click( jQuery.event.proxy( fn, function( event ) {
 			// Figure out which function to execute
-			this.lastToggle = ( this.lastToggle || 0 ) % i;
+			var lastToggle = ( jQuery.data( this, 'lastToggle' + fn.guid ) || 0 ) % i;
+			jQuery.data( this, 'lastToggle' + fn.guid, lastToggle + 1 );
 
 			// Make sure that clicks stop
 			event.preventDefault();
 
 			// and execute the function
-			return args[ this.lastToggle++ ].apply( this, arguments ) || false;
+			return args[ lastToggle ].apply( this, arguments ) || false;
 		}));
 	},
 
@@ -743,15 +751,23 @@ function liveHandler( event ) {
 
 	jQuery.each( jQuery.data( this, "events" ).live || [], function( i, fn ) {
 		if ( fn.live === event.type ) {
-			var elem = jQuery( event.target ).closest( fn.selector )[0];
+			var elem = jQuery( event.target ).closest( fn.selector, event.currentTarget )[0],
+				related;
 			if ( elem ) {
-				elems.push({ elem: elem, fn: fn });
+				// Those two events require additional checking
+				if ( fn.live === "mouseenter" || fn.live === "mouseleave" ) {
+					related = jQuery( event.relatedTarget ).closest( fn.selector )[0];
+				}
+
+				if ( !related || related !== elem ) {
+					elems.push({ elem: elem, fn: fn });
+				}
 			}
 		}
 	});
 
 	elems.sort(function( a, b ) {
-		return jQuery.data( a.elem, "closest" ) - jQuery.data( b.elem, "closest" );
+		return a.closer - b.closer;
 	});
 
 	jQuery.each(elems, function() {
@@ -776,6 +792,10 @@ jQuery.extend({
 	ready: function() {
 		// Make sure that the DOM is not already loaded
 		if ( !jQuery.isReady ) {
+			if ( !document.body ) {
+				return setTimeout( jQuery.ready, 13 );
+			}
+
 			// Remember that the DOM is ready
 			jQuery.isReady = true;
 
@@ -822,16 +842,22 @@ function bindReady() {
 		// ensure firing before onload,
 		// maybe late but safe also for iframes
 		document.attachEvent("onreadystatechange", function() {
+			// Make sure body exists, at least, in case IE gets a little overzealous (ticket #5443).
 			if ( document.readyState === "complete" ) {
 				document.detachEvent( "onreadystatechange", arguments.callee );
 				jQuery.ready();
 			}
 		});
 
-		// If IE and not an iframe
+		// If IE and not a frame
 		// continually check to see if the document is ready
-		// NOTE: DO NOT CHANGE TO ===, FAILS IN IE.
-		if ( document.documentElement.doScroll && window == window.top ) (function() {
+		var toplevel = false;
+
+		try {
+			toplevel = window.frameElement == null;
+		} catch(e){}
+
+		if ( document.documentElement.doScroll && toplevel ) (function() {
 			if ( jQuery.isReady ) {
 				return;
 			}
@@ -854,9 +880,9 @@ function bindReady() {
 	jQuery.event.add( window, "load", jQuery.ready );
 }
 
-jQuery.each( ("blur,focus,load,resize,scroll,unload,click,dblclick," +
-	"mousedown,mouseup,mousemove,mouseover,mouseout,mouseenter,mouseleave," +
-	"change,select,submit,keydown,keypress,keyup,error").split(","), function( i, name ) {
+jQuery.each( ("blur focus load resize scroll unload click dblclick " +
+	"mousedown mouseup mousemove mouseover mouseout mouseenter mouseleave " +
+	"change select submit keydown keypress keyup error").split(" "), function( i, name ) {
 
 	// Handle event binding
 	jQuery.fn[ name ] = function( fn ) {

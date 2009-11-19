@@ -15,6 +15,10 @@ jQuery.fn.extend({
 	load: function( url, params, callback ) {
 		if ( typeof url !== "string" ) {
 			return this._load( url );
+
+		// Don't do a request if no elements are being requested
+		} else if ( !this.length ) {
+			return this;
 		}
 
 		var off = url.indexOf(" ");
@@ -102,7 +106,7 @@ jQuery.fn.extend({
 });
 
 // Attach a bunch of functions for handling common AJAX events
-jQuery.each( "ajaxStart,ajaxStop,ajaxComplete,ajaxError,ajaxSuccess,ajaxSend".split(","), function(i,o){
+jQuery.each( "ajaxStart ajaxStop ajaxComplete ajaxError ajaxSuccess ajaxSend".split(" "), function(i,o){
 	jQuery.fn[o] = function(f){
 		return this.bind(o, f);
 	};
@@ -194,7 +198,7 @@ jQuery.extend({
 	ajax: function( s ) {
 		// Extend the settings, but re-extend 's' so that it can be
 		// checked again later (in the test suite, specifically)
-		s = jQuery.extend(true, s, jQuery.extend(true, {}, jQuery.ajaxSettings, s));
+		s = jQuery.extend(true, {}, jQuery.ajaxSettings, s);
 		
 		var jsonp, status, data,
 			callbackContext = s.context || window,
@@ -457,6 +461,8 @@ jQuery.extend({
 			xhr.send( type === "POST" || type === "PUT" ? s.data : null );
 		} catch(e) {
 			jQuery.handleError(s, xhr, null, e);
+			// Fire the complete handlers
+			complete();
 		}
 
 		// firefox 1.5 doesn't fire statechange for sync requests
@@ -467,7 +473,7 @@ jQuery.extend({
 		function success(){
 			// If a local callback was specified, fire it and pass it the data
 			if ( s.success ) {
-				s.success.call( callbackContext, data, status );
+				s.success.call( callbackContext, data, status, xhr );
 			}
 
 			// Fire the global callback

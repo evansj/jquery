@@ -32,13 +32,14 @@ var jQuery = function( selector, context ) {
 	rtrim = /^\s+|\s+$/g,
 
 	// Match a standalone tag
-	rsingleTag = /^<(\w+)\s*\/?>$/,
+	rsingleTag = /<(\w+)\s*\/?>(?:<\/\1>)?$/,
 
 	// Keep a UserAgent string for use with jQuery.browser
 	userAgent = navigator.userAgent.toLowerCase(),
 
 	// Save a reference to some core methods
 	toString = Object.prototype.toString,
+	hasOwnProperty = Object.prototype.hasOwnProperty,
 	push = Array.prototype.push,
 	slice = Array.prototype.slice,
 	indexOf = Array.prototype.indexOf;
@@ -55,7 +56,7 @@ jQuery.fn = jQuery.prototype = {
 		// Handle $(DOMElement)
 		if ( selector.nodeType ) {
 			this.context = this[0] = selector;
-			this.length++;
+			this.length = 1;
 			return this;
 		}
 
@@ -95,7 +96,7 @@ jQuery.fn = jQuery.prototype = {
 						}
 
 						// Otherwise, we inject the element directly into the jQuery object
-						this.length++;
+						this.length = 1;
 						this[0] = elem;
 					}
 
@@ -222,7 +223,7 @@ jQuery.fn = jQuery.prototype = {
 	},
 
 	is: function( selector ) {
-		return !!selector && jQuery.multiFilter( selector, this ).length > 0;
+		return !!selector && jQuery.filter( selector, this ).length > 0;
 	},
 
 	// For internal use only.
@@ -271,19 +272,10 @@ jQuery.extend = jQuery.fn.extend = function() {
 					continue;
 				}
 
-				// Recurse if we're merging object values
-				if ( deep && copy && typeof copy === "object" && !copy.nodeType ) {
-					var clone;
-
-					if ( src ) {
-						clone = src;
-					} else if ( jQuery.isArray(copy) ) {
-						clone = [];
-					} else if ( jQuery.isObject(copy) ) {
-						clone = {};
-					} else {
-						clone = copy;
-					}
+				// Recurse if we're merging object literal values
+				if ( deep && copy && jQuery.isObjectLiteral(copy) ) {
+					// Don't extend not object literals
+					var clone = src && jQuery.isObjectLiteral(src) ? src : {};
 
 					// Never move original objects, clone them
 					target[ name ] = jQuery.extend( deep, clone, copy );
@@ -322,8 +314,25 @@ jQuery.extend({
 		return toString.call(obj) === "[object Array]";
 	},
 
-	isObject: function( obj ) {
-		return this.constructor.call(obj) === Object;
+	isObjectLiteral: function( obj ) {
+		if ( toString.call(obj) !== "[object Object]" ) {
+			return false;
+		}
+		
+		// not own constructor property must be Object
+		if ( obj.constructor
+		  && !hasOwnProperty.call(obj, "constructor")
+		  && !hasOwnProperty.call(obj.constructor.prototype, "isPrototypeOf") ) {
+			return false;
+		}
+		
+		//own properties are iterated firstly,
+		//so to speed up, we can test last one if it is own or not
+	
+		var key;
+		for ( key in obj ) {}
+		
+		return key === undefined || hasOwnProperty.call( obj, key );
 	},
 
 	isEmptyObject: function( obj ) {
@@ -430,6 +439,10 @@ jQuery.extend({
 	},
 
 	inArray: function( elem, array ) {
+		if ( array.indexOf ) {
+			return array.indexOf( elem );
+		}
+
 		for ( var i = 0, length = array.length; i < length; i++ ) {
 			if ( array[ i ] === elem ) {
 				return i;
@@ -444,19 +457,8 @@ jQuery.extend({
 		// expando of getElementsByTagName
 		var i = 0, elem, pos = first.length;
 
-		// Also, we need to make sure that the correct elements are being returned
-		// (IE returns comment nodes in a '*' query)
-		if ( !jQuery.support.getAll ) {
-			while ( (elem = second[ i++ ]) != null ) {
-				if ( elem.nodeType !== 8 ) {
-					first[ pos++ ] = elem;
-				}
-			}
-
-		} else {
-			while ( (elem = second[ i++ ]) != null ) {
-				first[ pos++ ] = elem;
-			}
+		while ( (elem = second[ i++ ]) != null ) {
+			first[ pos++ ] = elem;
 		}
 
 		return first;

@@ -1,12 +1,18 @@
 module("fx");
 
 test("show()", function() {
-	expect(15);
+	expect(16);
 	var pass = true, div = jQuery("#main div");
 	div.show().each(function(){
 		if ( this.style.display == "none" ) pass = false;
 	});
 	ok( pass, "Show" );
+
+	pass = true;
+	div.hide().show(null).each(function() {
+		if ( this.style.display == "none" ) pass = false;
+	});
+	ok( pass, "Show will null speed");
 
 	jQuery("#main").append('<div id="show-tests"><div><p><a href="#"></a></p><code></code><pre></pre><span></span></div><table><thead><tr><th></th></tr></thead><tbody><tr><td></td></tr></tbody></table><ul><li></li></ul></div>');
 
@@ -66,6 +72,18 @@ test("animate option (queue === false)", function () {
 	}});
 });
 */
+
+test("animate with no properties", function() {
+	expect(1);
+	
+	var divs = jQuery("div"), count = 0;
+
+	divs.animate({}, function(){
+		count++;
+	});
+
+	equals( divs.length, count, "Make sure that callback is called for each element in the set." );
+});
 
 test("animate duration 0", function() {
 	expect(7);

@@ -167,7 +167,7 @@ jQuery.extend({
 
 				// Put in the new values to get a computed value out
 				elem.runtimeStyle.left = elem.currentStyle.left;
-				style.left = ret || 0;
+				style.left = camelCase === "fontSize" ? "1em" : (ret || 0);
 				ret = style.pixelLeft + "px";
 
 				// Revert the changed values
@@ -197,3 +197,19 @@ jQuery.extend({
 		}
 	}
 });
+
+if ( jQuery.expr && jQuery.expr.filters ) {
+	jQuery.expr.filters.hidden = function(elem){
+		var width = elem.offsetWidth, height = elem.offsetHeight,
+			 force = /^tr$/i.test( elem.nodeName ); // ticket #4512
+		return ( width === 0 && height === 0 && !force ) ?
+			true :
+				( width !== 0 && height !== 0 && !force ) ?
+					false :
+						!!( jQuery.curCSS(elem, "display") === "none" );
+	};
+
+	jQuery.expr.filters.visible = function(elem){
+		return !jQuery.expr.filters.hidden(elem);
+	};
+}
